@@ -3,7 +3,7 @@ const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const { pool, createTableIfNotExists } = require('../DataBase/db'); // Импортируем подключение к базе данных и функцию создания таблицы
-const PlayerData = require('./PlayerData/playerData'); // Импортируем класс PlayerData
+
 
 // Создаем приложение Express
 const app = express();
@@ -13,7 +13,7 @@ const server = http.createServer(app);
 app.use(cors());
 
 // Получаем адрес и порт из переменных окружения
-const PORT = process.env.PORT || 8080;
+const PORT = 10000;
 
 // Создаем сервер WebSocket
 const wss = new WebSocket.Server({ server });
@@ -21,6 +21,16 @@ const wss = new WebSocket.Server({ server });
 // Хранение всех подключенных клиентов и их данных
 const clients = new Map(); // Хранит сокеты и данные о клиентах
 const playerData = new Map(); // Хранит данные о игроках по логину
+
+// Класс для хранения данных игрока
+class PlayerData {
+    constructor(login, password, position = { x: 0, y: 0, z: 0 }, rotation = { x: 0, y: 0, z: 0 }) {
+        this.login = login; // Логин игрока
+        this.password = password; // Пароль игрока
+        this.position = position; // Позиция игрока
+        this.rotation = rotation; // Поворот игрока
+    }
+}
 
 // Загрузка данных игроков из базы данных
 async function loadPlayerData() {
