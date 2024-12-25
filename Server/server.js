@@ -47,7 +47,8 @@ wss.on('connection', (socket) => {
 
     // Обработка отключения клиента
     socket.on('close', () => {
-        const clientId = clients.get(socket);
+        let clientId;
+        clientId = clients.get(socket);
         console.log(`Клиент с ID ${clientId} отключен`);
 
         if (clientId) {
