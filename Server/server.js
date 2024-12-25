@@ -57,6 +57,7 @@ wss.on('connection', (socket) => {
             if (playerInfo) {
                 // Здесь можно сохранить данные игрока, например, в БД
                 console.log(`Данные игрока ${clientId}:`, playerInfo);
+                playerData.delete(clientId);
             }
         }
         broadcast(JSON.stringify({ type: 'player_disconnected', player_id: clientId}));
