@@ -1,6 +1,7 @@
 const WebSocket = require('ws');
 const express = require('express');
 const http = require('http');
+require('dotenv').config();
 const cors = require('cors');
 const { pool, createTableIfNotExists } = require('../DataBase/db'); // Импортируем подключение к базе данных и функцию создания таблицы
 
