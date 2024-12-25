@@ -16,25 +16,30 @@ const PORT = process.env.PORT || 8080;
 // Создаем сервер WebSocket
 const wss = new WebSocket.Server({ server });
 
-// Хранение всех подключенных клиентов и их идентификаторов
-const clients = new Map();
-let nextClientId = 1; // Уникальный идентификатор клиента
+// Класс для хранения данных игрока
+class PlayerData {
+    constructor(login, password) {
+        this.login = login; // Логин игрока
+        this.password = password; // Пароль игрока
+        this.position = { x: 0, y: 0, z: 0 }; // Начальная позиция
+        this.rotation = { x: 0, y: 0, z: 0 }; // Начальный поворот
+    }
+}
+
+// Хранение всех подключенных клиентов и их данных
+const clients = new Map(); // Хранит сокеты и данные о клиентах
+const playerData = new Map(); // Хранит данные о игроках по логину
 
 wss.on('connection', (socket) => {
-    const clientId = nextClientId++;
-    clients.set(socket, clientId);
-    console.log(`Клиент с ID ${clientId} подключен`);
-
-    // Уведомление всем клиентам о новом подключении
-    broadcast(JSON.stringify({ type: 'connect', clientId: clientId }));
+    console.log('Клиент подключен');
 
     // Обработка сообщений от клиента
     socket.on('message', (message) => {
-        console.log(`Получено сообщение от клиента ${clientId}: ${message}`);
+        console.log(`Получено сообщение от клиента: ${message}`);
 
         try {
             const data = JSON.parse(message);
-            handleClientMessage(data, clientId);
+            handleClientMessage(data, socket);
         } catch (error) {
             console.error('Ошибка при обработке сообщения:', error);
         }
@@ -42,42 +47,83 @@ wss.on('connection', (socket) => {
 
     // Обработка отключения клиента
     socket.on('close', () => {
+        const clientId = clients.get(socket);
         console.log(`Клиент с ID ${clientId} отключен`);
+
+        if (clientId) {
+            // Сохраняем данные клиента перед отключением
+            const playerInfo = playerData.get(clientId);
+            if (playerInfo) {
+                // Здесь можно сохранить данные игрока, например, в БД
+                console.log(`Данные игрока ${clientId}:`, playerInfo);
+            }
+        }
+
         clients.delete(socket);
-        broadcast(JSON.stringify({ type: 'disconnect', clientId: clientId }));
     });
 });
 
 // Функция обработки сообщений от клиента
-function handleClientMessage(data, clientId) {
+function handleClientMessage(data, socket) {
     switch (data.type) {
+        case 'connect':
+            handleConnect(data, socket);
+            break;
         case 'get_chunk':
-            handleGetChunk(data.position, clientId);
+            handleGetChunk(data.position, socket);
             break;
         case 'move':
-            handleMove(data.position, clientId);
+            handleMove(data.position, socket);
             break;
-        // Добавьте дополнительные типы сообщений по мере необходимости
         default:
             console.log('Неизвестный тип сообщения:', data.type);
     }
 }
 
+// Функция обработки подключения клиента
+function handleConnect(data, socket) {
+    const { login, password } = data;
+
+    // Проверка, есть ли уже данные у этого клиента
+    if (playerData.has(login)) {
+        console.log(`Клиент с логином ${login} повторно подключен.`);
+    } else {
+        console.log(`Новый клиент с логином ${login} подключен.`);
+        // Создаем новую структуру PlayerData
+        playerData.set(login, new PlayerData(login, password));
+    }
+
+    // Сохраняем сокет и данные о клиенте
+    clients.set(socket, login);
+
+    // Уведомление всем клиентам о новом подключении
+    broadcast(JSON.stringify({ type: 'player_connected', login: login }));
+
+    // Ответ клиенту о успешном подключении
+    socket.send(JSON.stringify({ type: 'connected', message: 'Соединение успешно установлено' }));
+}
+
 // Функция обработки get_chunk
-function handleGetChunk(position, clientId) {
-    console.log(`Клиент ${clientId} запрашивает get_chunk с позицией:`, position);
+function handleGetChunk(position, socket) {
+    console.log(`Клиент запрашивает get_chunk с позицией:`, position);
     // Здесь вы можете добавить логику для обработки запроса get_chunk
 }
 
 // Функция обработки перемещения
-function handleMove(position, clientId) {
+function handleMove(position, socket) {
+    const clientId = clients.get(socket);
     console.log(`Клиент ${clientId} перемещается на позицию:`, position);
-    // Здесь вы можете добавить логику для обработки перемещения
+
+    // Обновляем позицию игрока
+    if (clientId && playerData.has(clientId)) {
+        const playerInfo = playerData.get(clientId);
+        playerInfo.position = position; // Обновляем позицию
+    }
 }
 
 // Функция для отправки сообщений всем клиентам
 function broadcast(data) {
-    clients.forEach((clientId, client) => {
+    clients.forEach((login, client) => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(data);
         }
