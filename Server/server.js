@@ -78,6 +78,7 @@ function handleClientMessage(data, socket) {
             break;
         case 'get_players':
             handlePlayers(data, socket);
+            break;
         default:
             console.log('Неизвестный тип сообщения:', data.type);
     }
