@@ -4,7 +4,6 @@ const http = require('http');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const PlayerData = require('./PlayerData/playerData'); // Импортируем класс PlayerData
 
 // Создаем приложение Express
 const app = express();
