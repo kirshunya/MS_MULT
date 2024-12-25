@@ -1,9 +1,9 @@
 const WebSocket = require('ws');
 const express = require('express');
 const http = require('http');
-require('dotenv').config();
 const cors = require('cors');
 const { pool, createTableIfNotExists } = require('../DataBase/db'); // Импортируем подключение к базе данных и функцию создания таблицы
+const mysql = require('mysql2/promise');
 
 
 // Создаем приложение Express
@@ -12,9 +12,10 @@ const server = http.createServer(app);
 
 // Настройка CORS для всех источников
 app.use(cors());
+require('dotenv').config({path: '../.env'});
 
 // Получаем адрес и порт из переменных окружения
-const PORT = 10000;
+const PORT_FOR_SERVER = 10000;
 
 // Создаем сервер WebSocket
 const wss = new WebSocket.Server({ server });
@@ -191,6 +192,6 @@ function handlePlayers(socket) {
 }
 
 // Запускаем сервер
-server.listen(PORT, () => {
-    console.log(`Сервер запущен на порту ${PORT}`);
+server.listen(PORT_FOR_SERVER, () => {
+    console.log(`Сервер запущен на порту ${PORT_FOR_SERVER}`);
 });
