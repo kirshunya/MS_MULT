@@ -58,7 +58,7 @@ wss.on('connection', (socket) => {
                 console.log(`Данные игрока ${clientId}:`, playerInfo);
             }
         }
-
+        broadcast(JSON.stringify({ type: 'player_disconnected', player_id: clientId}));
         clients.delete(socket);
     });
 });
@@ -96,11 +96,17 @@ function handleConnect(data, socket) {
     // Сохраняем сокет и данные о клиенте
     clients.set(socket, login);
 
-    // Уведомление всем клиентам о новом подключении
-    broadcast(JSON.stringify({ type: 'player_connected', login: login }));
+    // Получаем данные игрока
+    const playerInfo = playerData.get(login);
 
-    // Ответ клиенту о успешном подключении
-    socket.send(JSON.stringify({ type: 'connected', message: 'Соединение успешно установлено' }));
+    // Уведомление всем клиентам о новом подключении
+    broadcast(JSON.stringify({ type: 'player_connected', player_id: login, position: playerInfo.position }));
+
+    // Ответ клиенту о успешном подключении с его текущей позицией
+    socket.send(JSON.stringify({
+        type: 'connected',
+        message: 'Соединение успешно установлено',
+    }));
 }
 
 // Функция обработки get_chunk
