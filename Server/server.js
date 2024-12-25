@@ -76,6 +76,8 @@ function handleClientMessage(data, socket) {
         case 'move':
             handleMove(data.position, socket);
             break;
+        case 'get_players':
+            handlePlayers(data, socket);
         default:
             console.log('Неизвестный тип сообщения:', data.type);
     }
@@ -135,6 +137,26 @@ function broadcast(data) {
             client.send(data);
         }
     });
+}
+
+function handlePlayers(position, socket) {
+    console.log('Подключенные игроки:');
+    playerData.forEach((data, login) => {
+        console.log(`Player ID: ${login}, Position: ${JSON.stringify(data.position)}`);
+    });
+    const playersArray = Array.from(playerData.values()).map(data => ({
+        player_id: data.login,
+        password: data.password,
+        rotation: data.rotation,
+        position: data.position
+    }));
+
+    console.log(JSON.stringify(playersArray, null, 2));
+
+    socket.send(JSON.stringify({
+        type: 'players_list',
+        players: playersArray
+    }));
 }
 
 // Запускаем сервер
