@@ -12,7 +12,7 @@ const server = http.createServer(app);
 
 // Настройка CORS для всех источников
 app.use(cors());
-require('dotenv').config({path: '../etc/secrets/.env'});
+require('dotenv').config({path: '../.env'});
 
 // Получаем адрес и порт из переменных окружения
 const PORT_FOR_SERVER = 10000;

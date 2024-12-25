@@ -1,4 +1,4 @@
-require('dotenv').config({path: '../etc/secrets/.env'});
+require('dotenv').config({path: '../.env'});
 
 const mysql = require('mysql2/promise');
 console.log('DB_HOST:', process.env.DB_HOST);
