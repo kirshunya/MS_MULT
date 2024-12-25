@@ -2,6 +2,9 @@ const WebSocket = require('ws');
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
+const PlayerData = require('./PlayerData/playerData'); // Импортируем класс PlayerData
 
 // Создаем приложение Express
 const app = express();
@@ -16,19 +19,35 @@ const PORT = process.env.PORT || 8080;
 // Создаем сервер WebSocket
 const wss = new WebSocket.Server({ server });
 
-// Класс для хранения данных игрока
-class PlayerData {
-    constructor(login, password) {
-        this.login = login; // Логин игрока
-        this.password = password; // Пароль игрока
-        this.position = { x: 0, y: 0, z: 0 }; // Начальная позиция
-        this.rotation = { x: 0, y: 0, z: 0 }; // Начальный поворот
-    }
-}
-
 // Хранение всех подключенных клиентов и их данных
 const clients = new Map(); // Хранит сокеты и данные о клиентах
 const playerData = new Map(); // Хранит данные о игроках по логину
+const jsonFilePath = path.join(__dirname, 'players.json');
+
+// Загрузка данных игроков из JSON файла
+function loadPlayerData() {
+    if (fs.existsSync(jsonFilePath)) {
+        const data = fs.readFileSync(jsonFilePath);
+        const players = JSON.parse(data);
+        players.forEach(player => {
+            playerData.set(player.login, new PlayerData(player.login, player.password, player.position, player.rotation));
+        });
+    }
+}
+
+// Сохранение данных отключенных игроков в JSON файл
+function savePlayerData() {
+    const playersArray = Array.from(playerData.values()).map(data => ({
+        login: data.login,
+        password: data.password,
+        position: data.position,
+        rotation: data.rotation
+    }));
+    fs.writeFileSync(jsonFilePath, JSON.stringify(playersArray, null, 2));
+}
+
+// Загружаем данные игроков при запуске сервера
+loadPlayerData();
 
 wss.on('connection', (socket) => {
     console.log('Клиент подключен');
@@ -47,20 +66,19 @@ wss.on('connection', (socket) => {
 
     // Обработка отключения клиента
     socket.on('close', () => {
-        let clientId;
-        clientId = clients.get(socket);
+        const clientId = clients.get(socket);
         console.log(`Клиент с ID ${clientId} отключен`);
 
         if (clientId) {
             // Сохраняем данные клиента перед отключением
             const playerInfo = playerData.get(clientId);
             if (playerInfo) {
-                // Здесь можно сохранить данные игрока, например, в БД
                 console.log(`Данные игрока ${clientId}:`, playerInfo);
                 playerData.delete(clientId);
+                savePlayerData(); // Сохраняем данные отключенных игроков
             }
         }
-        broadcast(JSON.stringify({ type: 'player_disconnected', player_id: clientId}));
+        broadcast(JSON.stringify({ type: 'player_disconnected', player_id: clientId }));
         clients.delete(socket);
     });
 });
@@ -78,7 +96,7 @@ function handleClientMessage(data, socket) {
             handleMove(data.position, socket);
             break;
         case 'get_players':
-            handlePlayers(data, socket);
+            handlePlayers(socket);
             break;
         default:
             console.log('Неизвестный тип сообщения:', data.type);
@@ -91,27 +109,29 @@ function handleConnect(data, socket) {
 
     // Проверка, есть ли уже данные у этого клиента
     if (playerData.has(login)) {
+        const playerInfo = playerData.get(login);
         console.log(`Клиент с логином ${login} повторно подключен.`);
+        // Присваиваем данные из JSON
+        socket.send(JSON.stringify({
+            type: 'connected',
+            message: 'Вы подключены с данными из JSON',
+            position: playerInfo.position
+        }));
     } else {
         console.log(`Новый клиент с логином ${login} подключен.`);
         // Создаем новую структуру PlayerData
         playerData.set(login, new PlayerData(login, password));
+        socket.send(JSON.stringify({
+            type: 'connected',
+            message: 'Соединение успешно установлено',
+        }));
     }
 
     // Сохраняем сокет и данные о клиенте
     clients.set(socket, login);
 
-    // Получаем данные игрока
-    const playerInfo = playerData.get(login);
-
     // Уведомление всем клиентам о новом подключении
-    broadcast(JSON.stringify({ type: 'player_connected', player_id: login, position: playerInfo.position }));
-
-    // Ответ клиенту о успешном подключении с его текущей позицией
-    socket.send(JSON.stringify({
-        type: 'connected',
-        message: 'Соединение успешно установлено',
-    }));
+    broadcast(JSON.stringify({ type: 'player_connected', player_id: login, position: playerData.get(login).position }));
 }
 
 // Функция обработки get_chunk
@@ -141,15 +161,11 @@ function broadcast(data) {
     });
 }
 
-function handlePlayers(position, socket) {
+// Функция для вывода информации о подключенных игроках
+function handlePlayers(socket) {
     console.log('Подключенные игроки:');
-    playerData.forEach((data, login) => {
-        console.log(`Player ID: ${login}, Position: ${JSON.stringify(data.position)}`);
-    });
     const playersArray = Array.from(playerData.values()).map(data => ({
         player_id: data.login,
-        password: data.password,
-        rotation: data.rotation,
         position: data.position
     }));
 
