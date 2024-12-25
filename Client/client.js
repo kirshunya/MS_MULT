@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 
-const socket = new WebSocket('ws://localhost:8080');
+const socket = new WebSocket('https://ms-mult.onrender.com');
 
 socket.on('open', () => {
     console.log('Подключено к серверу');

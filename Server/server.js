@@ -1,10 +1,14 @@
 const WebSocket = require('ws');
 const express = require('express');
 const http = require('http');
+const cors = require('cors');
 
 // Создаем приложение Express
 const app = express();
 const server = http.createServer(app);
+
+// Настройка CORS для всех источников
+app.use(cors());
 
 // Получаем адрес и порт из переменных окружения
 const PORT = process.env.PORT || 8080;
