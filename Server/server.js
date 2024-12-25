@@ -1,8 +1,18 @@
 const WebSocket = require('ws');
+const express = require('express');
+const http = require('http');
 
-const server = new WebSocket.Server({ port: 8080 });
+// Создаем приложение Express
+const app = express();
+const server = http.createServer(app);
 
-server.on('connection', (socket) => {
+// Получаем адрес и порт из переменных окружения
+const PORT = process.env.PORT || 8080;
+
+// Создаем сервер WebSocket
+const wss = new WebSocket.Server({ server });
+
+wss.on('connection', (socket) => {
     console.log('Клиент подключен');
 
     // Обработка сообщений от клиента
@@ -19,4 +29,7 @@ server.on('connection', (socket) => {
     });
 });
 
-console.log('Сервер запущен на порту 8080');
+// Запускаем сервер
+server.listen(PORT, () => {
+    console.log(`Сервер запущен на порту ${PORT}`);
+});
