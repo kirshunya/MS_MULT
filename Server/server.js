@@ -2,8 +2,8 @@ const WebSocket = require('ws');
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
-const { pool, createTableIfNotExists } = require('./db'); // Импортируем подключение к базе данных и функцию создания таблицы
-const PlayerData = require('./PlayerData'); // Импортируем класс PlayerData
+const { pool, createTableIfNotExists } = require('../DataBase/db'); // Импортируем подключение к базе данных и функцию создания таблицы
+const PlayerData = require('./PlayerData/playerData'); // Импортируем класс PlayerData
 
 // Создаем приложение Express
 const app = express();
