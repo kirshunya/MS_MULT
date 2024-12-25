@@ -2,7 +2,7 @@ const WebSocket = require('ws');
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
-const pool = require('./db'); // Импортируем подключение к базе данных
+const { pool, createTableIfNotExists } = require('./db'); // Импортируем подключение к базе данных и функцию создания таблицы
 const PlayerData = require('./PlayerData'); // Импортируем класс PlayerData
 
 // Создаем приложение Express
@@ -24,8 +24,8 @@ const playerData = new Map(); // Хранит данные о игроках п�
 
 // Загрузка данных игроков из базы данных
 async function loadPlayerData() {
-    const res = await pool.query('SELECT * FROM players');
-    res.rows.forEach(player => {
+    const [rows] = await pool.query('SELECT * FROM players');
+    rows.forEach(player => {
         playerData.set(player.login, new PlayerData(player.login, player.password, player.position, player.rotation));
     });
 }
@@ -35,7 +35,7 @@ async function savePlayerData() {
     const playersArray = Array.from(playerData.values());
     await pool.query('DELETE FROM players'); // Удаляем старые данные
     for (const player of playersArray) {
-        await pool.query('INSERT INTO players (login, password, position, rotation) VALUES ($1, $2, $3, $4)', [
+        await pool.query('INSERT INTO players (login, password, position, rotation) VALUES (?, ?, ?, ?)', [
             player.login,
             player.password,
             JSON.stringify(player.position),
@@ -44,8 +44,10 @@ async function savePlayerData() {
     }
 }
 
-// Загружаем данные игроков при запуске сервера
-loadPlayerData();
+// Создание таблицы при запуске сервера
+createTableIfNotExists()
+    .then(() => loadPlayerData())
+    .catch(err => console.error('Ошибка при инициализации базы данных:', err));
 
 wss.on('connection', (socket) => {
     console.log('Клиент подключен');

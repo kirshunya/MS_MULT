@@ -1,12 +1,29 @@
 // db.js
-const { Pool } = require('pg');
+const mysql = require('mysql2/promise');
 
 // Настройка подключения к базе данных
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL, // Убедитесь, что эта переменная окружения настроена на вашем Render
-    ssl: {
-        rejectUnauthorized: false // Для работы с SSL в Render
-    }
+const pool = mysql.createPool({
+    host: process.env.DB_HOST,      // Хост базы данных
+    user: process.env.DB_USER,      // Пользователь базы данных
+    password: process.env.DB_PASSWORD, // Пароль базы данных
+    database: process.env.DB_NAME,   // Имя базы данных
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
 });
 
-module.exports = pool;
+// Функция для создания таблицы, если она не существует
+async function createTableIfNotExists() {
+    const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS players (
+            login VARCHAR(255) PRIMARY KEY,
+            password VARCHAR(255),
+            position JSON,
+            rotation JSON
+        );
+    `;
+
+    await pool.query(createTableQuery);
+}
+
+module.exports = { pool, createTableIfNotExists };
