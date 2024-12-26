@@ -63,7 +63,7 @@ wss.on('connection', (socket) => {
 
     // Обработка сообщений от клиента
     socket.on('message', (message) => {
-        console.log(`Получено сообщение от клиента: ${message}`);
+        //console.log(`Получено сообщение от клиента: ${message}`);
 
         try {
             const data = JSON.parse(message);
@@ -146,13 +146,24 @@ function handleConnect(data, socket) {
 // Функция обработки get_chunk
 function handleGetChunk(position, socket) {
     console.log(`Клиент запрашивает get_chunk с позицией:`, position);
-    // Здесь вы можете добавить логику для обработки запроса get_chunk
+
+    const width = 16;
+    const height = 256;
+    const depth = 16;
+
+    const chunk = new Array(width * height * depth).fill(1);
+
+    socket.send(JSON.stringify({
+        type: 'chunk_data',
+        position: position,
+        blocks: chunk
+    }));
 }
 
 // Функция обработки перемещения
 function handleMove(position, socket) {
     const clientId = clients.get(socket);
-    console.log(`Клиент ${clientId} перемещается на позицию:`, position);
+    //console.log(`Клиент ${clientId} перемещается на позицию:`, position);
 
     // Обновляем позицию игрока
     if (clientId && playerData.has(clientId)) {
