@@ -32,6 +32,7 @@ const wss = new WebSocket.Server({ server });
 const clients = new Map(); // Хранит сокеты и данные о клиентах
 const playerData = new Map(); // Хранит данные о игроках по логину
 const jsonFilePath = path.join(__dirname, 'players.json');
+const chunkMap = new Map();
 
 // Загрузка данных игроков из JSON файла
 function loadPlayerData() {
@@ -50,7 +51,8 @@ function savePlayerData() {
         login: data.login,
         password: data.password,
         position: data.position,
-        rotation: data.rotation
+        rotation: data.rotation,
+        block_type: data.block_type
     }));
     fs.writeFileSync(jsonFilePath, JSON.stringify(playersArray, null, 2));
 }
@@ -94,6 +96,7 @@ wss.on('connection', (socket) => {
 
 // Функция обработки сообщений от клиента
 function handleClientMessage(data, socket) {
+
     switch (data.type) {
         case 'connect':
             handleConnect(data, socket);
@@ -106,6 +109,12 @@ function handleClientMessage(data, socket) {
             break;
         case 'get_players':
             handlePlayers(socket);
+            break;
+        case 'place_block':
+            handlePlaceBlock(data.position, data.block_type, socket);
+            break;
+        case 'destroy_block':
+            handleDestroyBlock(data.position, data.block_type, socket);
             break;
         default:
             console.log('Неизвестный тип сообщения:', data.type);
@@ -147,17 +156,31 @@ function handleConnect(data, socket) {
 function handleGetChunk(position, socket) {
     console.log(`Клиент запрашивает get_chunk с позицией:`, position);
 
-    const width = 16;
-    const height = 256;
-    const depth = 16;
+    const { x, y, z } = position;
+    const chunkKey = `${x},${y},${z}`;
 
-    const chunk = new Array(width * height * depth).fill(1);
+    if (chunkMap.has(chunkKey)) {
+        // Если чанк уже существует в карте, отправляем его клиенту
+        socket.send(JSON.stringify({
+            type: 'chunk_data',
+            position: position,
+            blocks: chunkMap.get(chunkKey)
+        }));
+    } else {
+        // Если чанка нет в карте, создаем новый, заполняем единицами и добавляем в карту
+        const width = 16;
+        const height = 256;
+        const depth = 16;
+        const chunk = new Array(width * height * depth).fill(1);
 
-    socket.send(JSON.stringify({
-        type: 'chunk_data',
-        position: position,
-        blocks: chunk
-    }));
+        chunkMap.set(chunkKey, chunk);
+
+        socket.send(JSON.stringify({
+            type: 'chunk_data',
+            position: position,
+            blocks: chunk
+        }));
+    }
 }
 
 // Функция обработки перемещения
@@ -196,6 +219,59 @@ function handlePlayers(socket) {
         type: 'players_list',
         players: playersArray
     }));
+}
+
+function handlePlaceBlock(position, blockType, socket) {
+    const { x, y, z } = position;
+    const chunkKey = `${x},${y},${z}`;
+
+    if (chunkMap.has(chunkKey)) {
+        // Если чанк существует, обновляем значение блока в нем
+        const chunk = chunkMap.get(chunkKey);
+        const chunkIndex = getChunkIndex(position);
+        chunk[chunkIndex] = blockType;
+        chunkMap.set(chunkKey, chunk);
+
+        // Уведомляем всех клиентов об изменении блока
+        broadcast(JSON.stringify({
+            type: 'block_placed',
+            position,
+            block_type: blockType
+        }));
+    } else {
+        // Если чанка не существует, ничего не делаем
+        console.log(`Чанк с координатами (${x}, ${y}, ${z}) не найден.`);
+    }
+}
+
+function handleDestroyBlock(position, blockType, socket) {
+    const { x, y, z } = position;
+    const chunkKey = `${x},${y},${z}`;
+
+    if (chunkMap.has(chunkKey)) {
+        // Если чанк существует, устанавливаем значение блока как 0 (воздух)
+        const chunk = chunkMap.get(chunkKey);
+        const chunkIndex = getChunkIndex(position);
+        chunk[chunkIndex] = 0;
+        chunkMap.set(chunkKey, chunk);
+
+        // Уведомляем всех клиентов об изменении блока
+        broadcast(JSON.stringify({
+            type: 'block_destroyed',
+            position
+        }));
+    } else {
+        // Если чанка не существует, ничего не делаем
+        console.log(`Чанк с координатами (${x}, ${y}, ${z}) не найден.`);
+    }
+}
+
+// Вспомогательная функция для получения индекса блока в чанке
+function getChunkIndex({ x, y, z }) {
+    const width = 16;
+    const height = 256;
+    const depth = 16;
+    return x % width + (y * depth) + (z % depth) * width * height;
 }
 
 // Запускаем сервер
