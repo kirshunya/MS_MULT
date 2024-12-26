@@ -25,6 +25,7 @@ wss.on('connection', (socket) => {
     socket.on('message', (message) => {
         try {
             const data = JSON.parse(message);
+            if(data.type !== 'move')console.log(data);
             handleClientMessage(data, socket);
         } catch (error) {
             console.error('Ошибка при обработке сообщения:', error);

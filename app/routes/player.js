@@ -98,26 +98,59 @@ function handleMove(position, socket) {
     broadcast(JSON.stringify({ type: 'player_moved', player_id: clientId, position: position }));
 }
 
-function handlePlaceBlock(position, blockType, socket) {
-    const chunkKey = `${position.x},${position.y},${position.z}`;
+function updateBlock(position, blockType, socket) {
+    const chunkPosition = getChunkContainingBlock(position);
+    const chunkKey = `${chunkPosition.x},${chunkPosition.y},${chunkPosition.z}`;
     if (chunkMap.has(chunkKey)) {
         const chunk = chunkMap.get(chunkKey);
-        const index = getChunkIndex(position);
-        chunk[index] = blockType;
+        const chunkOrigin = {
+            x: chunkPosition.x * 16, // Умножаем на 16, чтобы получить мировые координаты чанка
+            y: chunkPosition.y * 16, // Умножаем на 16, чтобы получить мировые координаты чанка
+            z: chunkPosition.z * 16  // Умножаем на 16, чтобы получить мировые координаты чанка
+        };
+
+        const indexV3 = {
+            x: position.x - chunkOrigin.x,
+            y: position.y - chunkOrigin.y,
+            z: position.z - chunkOrigin.z,
+        };
+
+        const index = indexV3.x + indexV3.z * 16 + indexV3.y * 16 * 16;
+        chunk[index] = blockType; // Устанавливаем тип блока
         chunkMap.set(chunkKey, chunk);
-        broadcast(JSON.stringify({ type: 'block_placed', position: position, block_type: blockType }));
+
+        // Отправляем обновление блоков
+        broadcast(JSON.stringify({ type: 'block_update', position: position, block_type: blockType }));
     }
 }
 
+function handlePlaceBlock(position, blockType, socket) {
+    updateBlock(position, blockType, socket);
+}
+
 function handleDestroyBlock(position, socket) {
-    const chunkKey = `${position.x},${position.y},${position.z}`;
-    if (chunkMap.has(chunkKey)) {
-        const chunk = chunkMap.get(chunkKey);
-        const index = getChunkIndex(position);
-        chunk[index] = 0;
-        chunkMap.set(chunkKey, chunk);
-        broadcast(JSON.stringify({ type: 'block_destroyed', position: position }));
+    updateBlock(position, 0, socket); // 0 для удаления блока
+}
+
+function getChunkContainingBlock(blockWorldPosition) {
+    let chunkPosition = {
+        x: Math.trunc(blockWorldPosition.x / 16),
+        y: Math.trunc(blockWorldPosition.y / 256),
+        z: Math.trunc(blockWorldPosition.z / 16)
+    };
+
+    if (blockWorldPosition.x < 0) {
+        if (blockWorldPosition.x % 16 !== 0) {
+            chunkPosition.x--;
+        }
     }
+    if (blockWorldPosition.z < 0) {
+        if (blockWorldPosition.z % 16 !== 0) {
+            chunkPosition.z--;
+        }
+    }
+
+    return chunkPosition;
 }
 
 function broadcast(data) {
